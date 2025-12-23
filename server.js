@@ -25,7 +25,9 @@ app.get('/', (req, res) => {
         status: 'ok',
         uptime: process.uptime(),
         sessions: sessions.size,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        secretConfigured: SECRET !== 'DEFAULT_SECRET_CHANGE_THIS',
+        secretPrefix: SECRET.substring(0, 5) + '...' // Show first 5 chars for debugging
     });
 });
 
@@ -37,9 +39,17 @@ app.get('/healthz', (req, res) => {
 app.post('/register', (req, res) => {
     const secret = req.headers['x-game-secret'];
     
+    console.log(`🔑 Received secret: ${secret ? secret.substring(0, 5) + '...' : 'NONE'}`);
+    console.log(`🔑 Expected secret: ${SECRET.substring(0, 5)}...`);
+    
     if (!secret || secret !== SECRET) {
-        console.warn('⚠️ Invalid secret');
-        return res.status(401).json({ error: 'Unauthorized' });
+        console.warn('⚠️ Invalid secret - Auth failed!');
+        console.warn(`   Received: ${secret}`);
+        console.warn(`   Expected: ${SECRET}`);
+        return res.status(401).json({ 
+            error: 'Unauthorized',
+            hint: 'Secret key mismatch'
+        });
     }
     
     const { token, userId, username } = req.body;
@@ -65,6 +75,7 @@ app.post('/validate', (req, res) => {
     const secret = req.headers['x-game-secret'];
     
     if (!secret || secret !== SECRET) {
+        console.warn('⚠️ Validation failed: Invalid secret');
         return res.json({ valid: false, reason: 'Unauthorized' });
     }
     
@@ -134,9 +145,15 @@ app.listen(PORT, '0.0.0.0', () => {
 ║  🚀 Validation Server Started             ║
 ║  Port: ${PORT}                            ║
 ║  Secret: ${SECRET.substring(0, 10)}...    ║
+║  Secret Configured: ${SECRET !== 'DEFAULT_SECRET_CHANGE_THIS' ? 'YES ✅' : 'NO ❌'}  ║
 ║  Status: Ready                            ║
 ╚═══════════════════════════════════════════╝
     `);
+    
+    if (SECRET === 'DEFAULT_SECRET_CHANGE_THIS') {
+        console.warn('⚠️⚠️⚠️ WARNING: Using default secret key! ⚠️⚠️⚠️');
+        console.warn('⚠️ Please set SECRET_KEY environment variable!');
+    }
 });
 
 // Graceful shutdown
