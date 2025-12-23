@@ -2,7 +2,8 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const SECRET = process.env.SECRET_KEY || 'DEFAULT_SECRET_CHANGE_THIS';
+// HARDCODED SECRET - Ganti ini dengan secret Anda
+const SECRET = process.env.SECRET_KEY || '231204';  // ← Hardcoded fallback
 const sessions = new Map();
 
 // CORS + Logging
@@ -26,8 +27,7 @@ app.get('/', (req, res) => {
         uptime: process.uptime(),
         sessions: sessions.size,
         timestamp: new Date().toISOString(),
-        secretConfigured: SECRET !== 'DEFAULT_SECRET_CHANGE_THIS',
-        secretPrefix: SECRET.substring(0, 5) + '...' // Show first 5 chars for debugging
+        secretSet: SECRET === '231204' ? 'YES' : 'NO'
     });
 });
 
@@ -39,16 +39,13 @@ app.get('/healthz', (req, res) => {
 app.post('/register', (req, res) => {
     const secret = req.headers['x-game-secret'];
     
-    console.log(`🔑 Received secret: ${secret ? secret.substring(0, 5) + '...' : 'NONE'}`);
-    console.log(`🔑 Expected secret: ${SECRET.substring(0, 5)}...`);
+    console.log(`🔑 Auth attempt - Received: ${secret}, Expected: ${SECRET}`);
     
     if (!secret || secret !== SECRET) {
-        console.warn('⚠️ Invalid secret - Auth failed!');
-        console.warn(`   Received: ${secret}`);
-        console.warn(`   Expected: ${SECRET}`);
+        console.warn('⚠️ Invalid secret!');
         return res.status(401).json({ 
             error: 'Unauthorized',
-            hint: 'Secret key mismatch'
+            receivedSecret: secret ? 'present but incorrect' : 'missing'
         });
     }
     
@@ -144,16 +141,10 @@ app.listen(PORT, '0.0.0.0', () => {
 ╔═══════════════════════════════════════════╗
 ║  🚀 Validation Server Started             ║
 ║  Port: ${PORT}                            ║
-║  Secret: ${SECRET.substring(0, 10)}...    ║
-║  Secret Configured: ${SECRET !== 'DEFAULT_SECRET_CHANGE_THIS' ? 'YES ✅' : 'NO ❌'}  ║
+║  Secret: ${SECRET}                        ║
 ║  Status: Ready                            ║
 ╚═══════════════════════════════════════════╝
     `);
-    
-    if (SECRET === 'DEFAULT_SECRET_CHANGE_THIS') {
-        console.warn('⚠️⚠️⚠️ WARNING: Using default secret key! ⚠️⚠️⚠️');
-        console.warn('⚠️ Please set SECRET_KEY environment variable!');
-    }
 });
 
 // Graceful shutdown
